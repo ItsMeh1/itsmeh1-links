@@ -2,44 +2,143 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Domain Checker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash v4 | Status</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
-        .domain-card { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
-        .online { color: #4ade80; }
-        .offline { color: #f87171; }
-        .checking { color: #fbbf24; }
+        :root {
+            --bg-dark: #0f172a;
+            --glass: rgba(30, 41, 59, 0.7);
+            --accent: #8b5cf6; /* Purple */
+            --online: #10b981;
+            --offline: #ef4444;
+            --checking: #f59e0b;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: var(--bg-dark); 
+            color: white; 
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        
+        h1 { 
+            font-size: 2rem; 
+            margin-bottom: 10px; 
+            background: linear-gradient(to right, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* The Button */
+        .check-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+            filter: brightness(1.1);
+        }
+
+        /* Results Container */
+        #results {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* The Domain Card */
+        .domain-card { 
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 18px; 
+            border-radius: 16px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s ease;
+        }
+
+        .domain-card:hover { border-color: rgba(139, 92, 246, 0.4); }
+
+        .domain-info { display: flex; align-items: center; gap: 15px; }
+
+        /* The Status Dot */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .status-dot.online { background: var(--online); box-shadow: 0 0 10px var(--online); }
+        .status-dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
+        .status-dot.checking { background: var(--checking); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .domain-name { font-weight: 500; font-size: 1.1rem; }
+        .status-text { font-size: 0.85rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+
     </style>
 </head>
 <body>
 
-    <h1>My Status Dashboard</h1>
-    <button onclick="checkAll()">Check Status</button>
+    <div class="header">
+        <h1>Currently Online Flash Sites</h1>
+        <button class="check-btn" onclick="checkAll()">
+            <i data-lucide="refresh-cw" size="18" id="sync-icon"></i>
+            Check All Links
+        </button>
+    </div>
 
-    <div id="results" style="margin-top: 20px;"></div>
+    <div id="results">
+        </div>
 
     <script>
-        // 1. Put the domains you want to check here
+        // Use your real Nova domains here!
         const myDomains = [
-            "google.com",
-            "github.com",
-            "this-site-is-fake-12345.com" 
+            "novastream.vercel.app",
+            "novastream.top",
+            "nova-2bn.pages.dev",
+            "google.com"
         ];
 
-        // 2. The function that checks a single domain
         async function checkSite(domain) {
             try {
-                // Step A: DNS Check
                 const dns = await fetch(`https://dns.google/resolve?name=${domain}`);
                 const dnsData = await dns.json();
                 
-                if (!dnsData.Answer) {
-                    return `<span class="offline">Offline (No DNS)</span>`;
-                }
+                if (!dnsData.Answer) return { status: 'offline', msg: 'DNS Check Fail' };
 
-                // Step B: The "Ping" trick (trying to grab the favicon)
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
 
                 await fetch(`https://${domain}/favicon.ico`, { 
                     mode: 'no-cors', 
@@ -47,37 +146,49 @@
                 });
                 
                 clearTimeout(timeoutId);
-                return `<span class="online">Online</span>`;
+                return { status: 'online', msg: 'Online' };
 
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    return `<span class="offline">Offline (Timed out)</span>`;
-                }
-                return `<span class="offline">Offline (Connection failed)</span>`;
+                return { status: 'offline', msg: error.name === 'AbortError' ? 'Timeout' : 'Offline' };
             }
         }
 
-        // 3. The function that loops through your list and updates the screen
         async function checkAll() {
             const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = "Checking...";
-
-            let finalHTML = "";
+            const btnIcon = document.getElementById("sync-icon");
+            
+            // Start spin animation
+            btnIcon.style.animation = "pulse 1s infinite";
+            resultsDiv.innerHTML = ""; // Clear old results
 
             for (let domain of myDomains) {
-                // Wait for the check to finish
-                let status = await checkSite(domain); 
-                
-                // Add it to the screen
-                finalHTML += `
-                    <div class="domain-card">
-                        <strong>${domain}</strong> - ${status}
+                // Create a "Checking" placeholder
+                const card = document.createElement('div');
+                card.className = 'domain-card';
+                card.innerHTML = `
+                    <div class="domain-info">
+                        <div class="status-dot checking"></div>
+                        <span class="domain-name">${domain}</span>
                     </div>
+                    <span class="status-text">Checking...</span>
                 `;
-            }
+                resultsDiv.appendChild(card);
 
-            resultsDiv.innerHTML = finalHTML;
+                // Perform the actual check
+                const result = await checkSite(domain);
+
+                // Update the card we just made
+                card.querySelector('.status-dot').className = `status-dot ${result.status}`;
+                card.querySelector('.status-text').innerText = result.msg;
+                card.querySelector('.status-text').style.color = `var(--${result.status})`;
+            }
+            
+            // Stop spin animation
+            btnIcon.style.animation = "none";
         }
+
+        // Initialize icons
+        lucide.createIcons();
     </script>
 </body>
 </html>

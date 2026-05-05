@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Domain Checker</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        .domain-card { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .online { color: #4ade80; }
+        .offline { color: #f87171; }
+        .checking { color: #fbbf24; }
+    </style>
+</head>
+<body>
 
+    <h1>My Status Dashboard</h1>
+    <button onclick="checkAll()">Check Status</button>
+
+    <div id="results" style="margin-top: 20px;"></div>
+
+    <script>
+        // 1. Put the domains you want to check here
+        const myDomains = [
+            "google.com",
+            "github.com",
+            "this-site-is-fake-12345.com" 
+        ];
+
+        // 2. The function that checks a single domain
+        async function checkSite(domain) {
+            try {
+                // Step A: DNS Check
+                const dns = await fetch(`https://dns.google/resolve?name=${domain}`);
+                const dnsData = await dns.json();
+                
+                if (!dnsData.Answer) {
+                    return `<span class="offline">Offline (No DNS)</span>`;
+                }
+
+                // Step B: The "Ping" trick (trying to grab the favicon)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds
+
+                await fetch(`https://${domain}/favicon.ico`, { 
+                    mode: 'no-cors', 
+                    signal: controller.signal 
+                });
+                
+                clearTimeout(timeoutId);
+                return `<span class="online">Online</span>`;
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    return `<span class="offline">Offline (Timed out)</span>`;
+                }
+                return `<span class="offline">Offline (Connection failed)</span>`;
+            }
+        }
+
+        // 3. The function that loops through your list and updates the screen
+        async function checkAll() {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "Checking...";
+
+            let finalHTML = "";
+
+            for (let domain of myDomains) {
+                // Wait for the check to finish
+                let status = await checkSite(domain); 
+                
+                // Add it to the screen
+                finalHTML += `
+                    <div class="domain-card">
+                        <strong>${domain}</strong> - ${status}
+                    </div>
+                `;
+            }
+
+            resultsDiv.innerHTML = finalHTML;
+        }
+    </script>
+</body>
+</html>
